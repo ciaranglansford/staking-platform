@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title MasterChef
 /// @notice Simplified MasterChef contract supporting multiple staking pools and time-based rewards.
@@ -52,7 +52,7 @@ contract MasterChef is Ownable, ReentrancyGuard {
     /// @param _rewardToken The reward token address
     /// @param _rewardPerSec Reward tokens created per second
     /// @param _startTime When reward distribution starts
-    constructor(IERC20 _rewardToken, uint256 _rewardPerSec, uint256 _startTime) {
+    constructor(IERC20 _rewardToken, uint256 _rewardPerSec, uint256 _startTime) Ownable(msg.sender){
         rewardToken = _rewardToken;
         rewardPerSec = _rewardPerSec;
         startTime = _startTime;

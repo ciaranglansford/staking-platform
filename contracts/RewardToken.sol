@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract RewardToken is ERC20, Ownable {
     /// @notice Creates the token and mints initial supply to the deployer.
     /// @param initialSupply Initial token supply minted to the deployer.
-    constructor(uint256 initialSupply) ERC20("RewardToken", "RWT") {
+    constructor(uint256 initialSupply) ERC20("RewardToken", "RWT") Ownable(msg.sender) {
         _mint(msg.sender, initialSupply);
     }
 

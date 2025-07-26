@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract StakingToken is ERC20, Ownable {
     /// @notice Creates the token and mints initial supply to the deployer.
     /// @param initialSupply Initial token supply minted to the deployer.
-    constructor(uint256 initialSupply) ERC20("StakingToken", "STK") {
+    constructor(uint256 initialSupply) ERC20("StakingToken", "STK") Ownable(msg.sender) {
         _mint(msg.sender, initialSupply);
     }
 
