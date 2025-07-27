@@ -174,13 +174,17 @@ contract Lending is ReentrancyGuard, Ownable, Pausable {
     }
 
     function _getValueInETH(address token, uint256 amount) internal view returns (uint256) {
-        (, int256 price,,,) = AggregatorV3Interface(s_tokenData[token].priceFeed).latestRoundData();
-        return (amount * uint256(price)) / 1e18;
+        AggregatorV3Interface feed = AggregatorV3Interface(s_tokenData[token].priceFeed);
+        (, int256 price,,,) = feed.latestRoundData();
+        uint8 decimals = feed.decimals();
+        return (amount * uint256(price)) / (10 ** decimals);
     }
 
     function _getValueFromETH(address token, uint256 ethAmount) internal view returns (uint256) {
-        (, int256 price,,,) = AggregatorV3Interface(s_tokenData[token].priceFeed).latestRoundData();
-        return (ethAmount * 1e18) / uint256(price);
+        AggregatorV3Interface feed = AggregatorV3Interface(s_tokenData[token].priceFeed);
+        (, int256 price,,,) = feed.latestRoundData();
+        uint8 decimals = feed.decimals();
+        return (ethAmount * (10 ** decimals)) / uint256(price);
     }
 
     // Admin Controls

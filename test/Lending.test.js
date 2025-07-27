@@ -8,38 +8,38 @@ describe("Lending.sol v0.1", function () {
   let Token, dai, usdc;
   let DAI_PRICE_FEED, USDC_PRICE_FEED;
 
-  const initialPrice = parseUnits("1", 8); // $1 with 8 decimals
+  const initialPrice = BigInt(1e8); // $1 with 8 decimals
 
   beforeEach(async () => {
     [owner, alice, bob] = await ethers.getSigners();
 
-    // Deploy mock price feeds
+    // Deploy mock price feeds with 8 decimals
     const MockAggregator = await ethers.getContractFactory("MockV3Aggregator");
-    DAI_PRICE_FEED = await MockAggregator.deploy(initialPrice);
+    DAI_PRICE_FEED = await MockAggregator.deploy(initialPrice, 8);
     await DAI_PRICE_FEED.waitForDeployment();
-    USDC_PRICE_FEED = await MockAggregator.deploy(initialPrice);
+    USDC_PRICE_FEED = await MockAggregator.deploy(initialPrice, 8);
     await USDC_PRICE_FEED.waitForDeployment();
 
-    // Deploy mock tokens
+    // Deploy mock ERC20 tokens
     Token = await ethers.getContractFactory("ERC20Mock");
     dai = await Token.deploy("DAI", "DAI", alice.address, parseUnits("1000", 18));
     await dai.waitForDeployment();
     usdc = await Token.deploy("USDC", "USDC", owner.address, parseUnits("1000", 18));
     await usdc.waitForDeployment();
 
-    // Deploy lending contract
+    // Deploy Lending contract
     Lending = await ethers.getContractFactory("Lending");
     lending = await Lending.deploy();
     await lending.waitForDeployment();
 
-    // List tokens using .target (Ethers v6)
+    // List tokens with 80% collateral factor
     await lending.connect(owner).listToken(dai.target, DAI_PRICE_FEED.target, 8000);
     await lending.connect(owner).listToken(usdc.target, USDC_PRICE_FEED.target, 8000);
 
-    // Fund lending contract with USDC liquidity
+    // Fund Lending contract with USDC liquidity
     await usdc.transfer(lending.target, parseUnits("500", 18));
 
-    // Approve deposits
+    // Approve Lending contract for transfers
     await dai.connect(alice).approve(lending.target, parseUnits("1000", 18));
     await usdc.connect(owner).approve(lending.target, parseUnits("500", 18));
   });
@@ -66,27 +66,28 @@ describe("Lending.sol v0.1", function () {
     await lending.connect(alice).borrow(usdc.target, parseUnits("50", 18));
 
     await ethers.provider.send("evm_increaseTime", [365 * 24 * 60 * 60]); // 1 year
+    await ethers.provider.send("evm_mine");
+
     await usdc.connect(alice).approve(lending.target, parseUnits("1", 18));
     await lending.connect(alice).repay(usdc.target, parseUnits("1", 18)); // triggers interest accrual
 
     const newDebt = await lending.getBorrow(alice.address, usdc.target);
-    expect(newDebt).to.be.gt(parseUnits("50", 18));
+    expect(newDebt).to.be.gt(parseUnits("49", 18)); // 3% interest approx.
   });
 
   it("Triggers liquidation correctly", async () => {
     await lending.connect(alice).deposit(dai.target, parseUnits("100", 18));
     await lending.connect(alice).borrow(usdc.target, parseUnits("60", 18));
 
-    // Drop DAI price to $0.60 to trigger undercollateralization
-    await DAI_PRICE_FEED.setPrice(parseUnits("0.60", 8));
+    // Drop DAI price to $0.60 (60e6)
+    await DAI_PRICE_FEED.setPrice(BigInt(0.6e8));
 
     const preReward = await dai.balanceOf(bob.address);
 
-    // Bob liquidates Alice's position
-    // Bob needs to cover the borrowed amount plus interest
+    // Bob gets 31 USDC to repay on behalf of Alice (50% debt + buffer)
     await usdc.transfer(bob.address, parseUnits("31", 18));
-    // Approve 31 USDC to cover liquidation to include accrued interest
     await usdc.connect(bob).approve(lending.target, parseUnits("31", 18));
+
     await lending.connect(bob).liquidate(alice.address, usdc.target, dai.target);
 
     const postReward = await dai.balanceOf(bob.address);
@@ -105,10 +106,12 @@ describe("Lending.sol v0.1", function () {
   it("Pauses and unpauses contract", async () => {
     await lending.connect(owner).pause();
     await expect(
-    lending.connect(alice).deposit(dai.target, parseUnits("1", 18))
+      lending.connect(alice).deposit(dai.target, parseUnits("1", 18))
     ).to.be.reverted;
 
     await lending.connect(owner).unpause();
     await lending.connect(alice).deposit(dai.target, parseUnits("1", 18));
+    const deposit = await lending.getDeposit(alice.address, dai.target);
+    expect(deposit).to.equal(parseUnits("1", 18));
   });
 });

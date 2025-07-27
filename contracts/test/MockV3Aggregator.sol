@@ -3,9 +3,11 @@ pragma solidity ^0.8.20;
 
 contract MockV3Aggregator {
     int256 private _price;
+    uint8 public decimals;
 
-    constructor(int256 initialPrice) {
+    constructor(int256 initialPrice, uint8 _decimals) {
         _price = initialPrice;
+        decimals = _decimals;
     }
 
     function latestRoundData()
